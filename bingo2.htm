@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bingo de 90 Números</title>
+    <style>
+        *{
+            -webkit-user-select: none;
+           -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none; 
+        }
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1, h2 {
+            color: #333;
+        }
+
+        .bingo-card {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 10px;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .number-circle {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            background-color: #e0e0e0;
+            transition: background-color 0.3s, color 0.3s, transform 0.3s;
+        }
+
+        .number-circle.disabled {
+            background-color: #777;
+            color: #eee;
+            pointer-events: none;
+        }
+
+        .number-circle.pulsate {
+            animation: pulsate 1s 2;
+        }
+
+        @keyframes pulsate {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.7); }
+            50% { transform: scale(1.1); box-shadow: 0 0 10px 10px rgba(255, 82, 82, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 82, 82, 0); }
+        }
+
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin: 0 10px;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            background-color: #007bff;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            background-color: #aaa;
+        }
+
+        /* ESTILOS PARA EL HISTORIAL DE NÚMEROS */
+        .history-container {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        #history-display {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 10px;
+            min-height: 60px; /* Para evitar saltos de layout al estar vacío */
+        }
+
+        /* Círculo para el número actual (el más reciente) */
+        .history-current {
+            background-color: #ff5252;
+            color: white;
+            font-size: 1.5em;
+            width: 60px;
+            height: 60px;
+        }
+
+        /* Círculos para los números anteriores */
+        .history-previous {
+            background-color: #a0a0a0;
+            color: white;
+            transform: scale(0.8); /* Los hacemos un poco más pequeños */
+        }
+
+        /* ESTILOS DEL MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 600px;
+            border-radius: 10px;
+            text-align: center;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from {opacity: 0;}
+            to {opacity: 1;}
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        #winner-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        #winner-list .number-circle {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        /* ESTILOS PARA NOTIFICACIONES TOAST */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 5px;
+            padding: 16px;
+            position: fixed;
+            z-index: 200;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.5s, transform 0.5s;
+        }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bingo de 90 Números</h1>
+    <div class="bingo-card">
+        <!-- Los números del bingo se generarán aquí con jQuery -->
+    </div>
+    <div class="controls">
+        <button id="start-game">Iniciar</button>
+        <button id="show-winner" disabled>Ganador</button>
+        <div class="history-container">
+            <h2>Últimos Números:</h2>
+            <div id="history-display">
+                <!-- Los 5 últimos números se generarán aquí -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para mostrar los números ganadores -->
+    <div id="winner-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Números que han salido</h2>
+            <div id="winner-list"></div>
+        </div>
+    </div>
+
+    <!-- Contenedor para notificaciones Toast -->
+    <div id="toast"></div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+$(document).ready(function() {
+    // Referencias a elementos del DOM
+    const bingoCard = $('.bingo-card');
+    const startGameButton = $('#start-game');
+    const showWinnerButton = $('#show-winner');
+    const historyDisplay = $('#history-display');
+    const winnerModal = $('#winner-modal');
+    const closeModalButton = $('.close-button');
+    const winnerList = $('#winner-list');
+
+    // Variables de estado del juego
+    const totalNumbers = 90;
+    let drawnNumbers = [];
+    let drawingInterval = null;
+    let toastTimeout = null;
+
+    // --- Función para mostrar Notificaciones Toast ---
+    function showToast(message) {
+        const toast = $('#toast');
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toast.text(message).addClass('show');
+        toastTimeout = setTimeout(() => toast.removeClass('show'), 3000);
+    }
+
+    // --- Función para actualizar el historial de los últimos 5 números ---
+    function updateHistoryDisplay() {
+        historyDisplay.empty();
+        const lastFive = drawnNumbers.slice(-5).reverse();
+        lastFive.forEach((number, index) => {
+            const circleClass = (index === 0) ? 'history-current' : 'history-previous';
+            historyDisplay.append(`<div class="number-circle ${circleClass}">${number}</div>`);
+        });
+    }
+
+    // 1. Configuración de IndexedDB
+    let db;
+    const request = indexedDB.open('BingoGame', 1);
+
+    request.onerror = (event) => console.error("Error al abrir IndexedDB:", event.target.errorCode);
+    request.onupgradeneeded = (event) => {
+        db = event.target.result;
+        if (!db.objectStoreNames.contains('drawnNumbers')) {
+            db.createObjectStore("drawnNumbers", { keyPath: "number" });
+        }
+    };
+    request.onsuccess = (event) => {
+        db = event.target.result;
+        loadDrawnNumbers();
+    };
+
+    // 2. Generar el tablero de bingo al cargar la página
+    for (let i = 1; i <= totalNumbers; i++) {
+        bingoCard.append(`<div class="number-circle" data-number="${i}">${i}</div>`);
+    }
+
+    // 3. Lógica principal del juego
+    function drawNumber() {
+        if (drawnNumbers.length >= totalNumbers) {
+            showToast('¡Todos los números han sido sacados!');
+            clearInterval(drawingInterval);
+            showWinnerButton.prop('disabled', false);
+            return;
+        }
+
+        let randomNumber;
+        do {
+            randomNumber = Math.floor(Math.random() * totalNumbers) + 1;
+        } while (drawnNumbers.includes(randomNumber));
+
+        drawnNumbers.push(randomNumber);
+        saveDrawnNumber(randomNumber);
+        updateHistoryDisplay();
+
+        const numberElementOnBoard = $(`.number-circle[data-number=${randomNumber}]`);
+        const currentNumberInHistory = $('.history-current');
+        
+        numberElementOnBoard.addClass('pulsate');
+        currentNumberInHistory.addClass('pulsate');
+
+        setTimeout(() => {
+            numberElementOnBoard.removeClass('pulsate').addClass('disabled');
+            currentNumberInHistory.removeClass('pulsate');
+        }, 2000);
+    }
+
+    // --- Manejadores de Eventos ---
+    startGameButton.on('click', () => {
+        $(this).prop('disabled', true);
+        showWinnerButton.prop('disabled', false);
+        drawingInterval = setInterval(drawNumber, 2500);
+        showToast('¡El sorteo ha comenzado!');
+    });
+
+    showWinnerButton.on('click', () => {
+        clearInterval(drawingInterval);
+        winnerList.empty();
+        
+        const sortedDrawnNumbers = [...drawnNumbers].sort((a, b) => a - b);
+        
+        if (sortedDrawnNumbers.length === 0) {
+            winnerList.append("<p>Aún no ha salido ningún número.</p>");
+        } else {
+            sortedDrawnNumbers.forEach(number => {
+                winnerList.append(`<div class="number-circle">${number}</div>`);
+            });
+        }
+        winnerModal.show();
+    });
+
+    const closeAndReset = () => {
+        winnerModal.hide();
+        resetGame();
+    };
+
+    closeModalButton.on('click', closeAndReset);
+    $(window).on('click', (event) => {
+        if ($(event.target).is(winnerModal)) {
+            closeAndReset();
+        }
+    });
+
+    function resetGame() {
+        drawnNumbers = [];
+        clearInterval(drawingInterval);
+        $('.number-circle').removeClass('disabled');
+        updateHistoryDisplay();
+        startGameButton.prop('disabled', false);
+        showWinnerButton.prop('disabled', true);
+        clearDrawnNumbersDB();
+        showToast('¡Juego reiniciado! Listo para una nueva partida.');
+    }
+
+    // 4. Funciones de IndexedDB
+    function saveDrawnNumber(number) {
+        if (!db) return;
+        const transaction = db.transaction(["drawnNumbers"], "readwrite");
+        transaction.objectStore("drawnNumbers").add({ number: number });
+    }
+
+    function loadDrawnNumbers() {
+        if (!db) return;
+        const request = db.transaction(["drawnNumbers"], "readonly").objectStore("drawnNumbers").getAll();
+        request.onsuccess = (event) => {
+            const result = event.target.result;
+            if (result.length > 0) {
+                drawnNumbers = result.map(item => item.number);
+                drawnNumbers.forEach(number => $(`.number-circle[data-number=${number}]`).addClass('disabled'));
+                updateHistoryDisplay();
+                startGameButton.prop('disabled', true);
+                showWinnerButton.prop('disabled', false);
+                showToast("Partida anterior cargada.");
+            }
+        };
+    }
+
+    function clearDrawnNumbersDB() {
+        if (!db) return;
+        const request = db.transaction(["drawnNumbers"], "readwrite").objectStore("drawnNumbers").clear();
+        request.onsuccess = () => console.log("Base de datos de bingo reiniciada.");
+        request.onerror = (event) => console.error("Error al limpiar la base de datos:", event.target.errorCode);
+    }
+});
+    </script>
+</body>
+</html>
